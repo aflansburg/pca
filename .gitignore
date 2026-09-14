@@ -1,0 +1,16 @@
+local-docs/
+data/sources/
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+
+# local secrets
+.env
+
+# jupyter
+.jupyter/
+.jupyter_ystore.db

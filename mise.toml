@@ -1,0 +1,53 @@
+# mise-en-place: toolchain + task runner. https://mise.jdx.dev
+# `mise install` provisions the tools; `mise tasks` lists tasks; `mise run <task>`.
+# Python is managed by uv (see .python-version); mise pins the rest.
+
+[tools]
+uv = "latest"
+node = "24"
+
+[tasks.setup]
+description = "Install all deps (Python via uv + web via npm)"
+run = ["uv sync", "npm --prefix app/web install"]
+
+[tasks.acquire]
+description = "Fetch DE source snapshots (API pulls + NPPES bulk) before staging"
+run = "uv run python -m pipeline.acquire.run"
+
+[tasks.pipeline]
+description = "Build the DuckDB pipeline (all assets: sources -> staging -> model -> marts)"
+run = "uv run python -m pipeline.cli"
+
+[tasks.api]
+description = "Run the FastAPI backend with reload (:8000)"
+run = "uv run uvicorn app.api.main:app --port 8000 --reload"
+
+[tasks.web]
+description = "Run the Vite dev server (:5173), proxying /api to :8000"
+run = "npm --prefix app/web run dev"
+
+[tasks.build-web]
+description = "Build the frontend to app/web/dist"
+run = "npm --prefix app/web run build"
+
+[tasks.dev]
+description = "Run API + Vite dev servers together (mise runs the deps in parallel)"
+depends = ["api", "web"]
+
+[tasks.serve]
+description = "Build the web app, then serve the whole SPA + API from FastAPI (:8000)"
+depends = ["build-web"]
+run = "uv run uvicorn app.api.main:app --port 8000"
+
+[tasks.check]
+description = "Lint + format (ruff) + type-check (ty) + tests (pytest)"
+run = [
+  "uv run ruff check pipeline app tests",
+  "uv run ruff format --check pipeline app tests",
+  "uv run ty check pipeline app",
+  "uv run pytest -q",
+]
+
+[tasks.drift-watch]
+description = "Poll upstream CMS API schemas vs required_columns (non-gating; exits 1 on drift)"
+run = "uv run python -m pipeline.driftwatch"

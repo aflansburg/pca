@@ -1,0 +1,60 @@
+[project]
+name = "primary-care-atlas"
+version = "0.1.0"
+description = "ETL pipeline and web app to explore Delaware primary care providers from public CMS data"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "altair>=6.3.0",
+    "duckdb>=1.1.0",
+    "fastapi>=0.141",
+    "pandas>=2.2.0",
+    "pyarrow>=17.0.0",
+    "requests>=2.32.0",
+    "uvicorn[standard]>=0.53",
+]
+
+[dependency-groups]
+# EDA / notebook tooling — dev only, not needed by the pipeline or API at runtime
+dev = [
+    "jupyterlab>=4.2.0",
+    "ipykernel>=6.29.0",
+    "jupyter-collaboration>=5.0.3",
+    "jupyter-mcp-tools>=0.1.7",
+    # Pin below 6.5: tornado 6.5 breaks JupyterLab static serving with jupyter_server 2.21.0
+    "tornado<6.5",
+    "ty>=0.0.81",
+    "ruff>=0.14.0",
+    "pytest>=9.1.1",
+    "httpx2>=2.13.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["pipeline"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "RUF", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# driftwatch is a non-gating poller; a broad catch is deliberate.
+"pipeline/driftwatch.py" = ["BLE001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # Starlette 1.6.0 TestClient triggers anyio's BlockingPortal alias deprecation.
+    # The import lives in starlette, so we can't fix it here. Drop this once a
+    # Starlette release updates the import.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
