@@ -1,0 +1,64 @@
+# Primary Care Atlas — configuration
+# Brief rule 4: state filter in config. Brief rule 5: primary-care scope in config.
+# Do NOT hardcode "DE" or specialty lists in pipeline logic — read them from here.
+
+state = "DE"
+
+[primary_care]
+# Scope: ACA Section 5501 primary care -- 5 physician specialties + NP/PA/CNS.
+# Asymmetry: NPPES (NUCC) picks primary-care NP/PA/CNS subtypes; DAC/MUP/PPEF are monolithic
+# (no subtype), so those sources include NP/PA/CNS wholesale.
+
+# NPPES: NUCC taxonomy codes
+nppes_taxonomy_codes = [
+  # Physicians (base classifications)
+  "207Q00000X", # Family Medicine
+  "208D00000X", # General Practice
+  "207R00000X", # Internal Medicine
+  "208000000X", # Pediatrics
+  # Physicians (geriatric specialization)
+  "207QG0300X", # Family Medicine / Geriatric Medicine
+  "207RG0300X", # Internal Medicine / Geriatric Medicine
+  # Nurse Practitioner (primary-care specializations + unspecified base)
+  "363L00000X", # Nurse Practitioner (unspecified)
+  "363LF0000X", # NP / Family
+  "363LA2200X", # NP / Adult Health
+  "363LG0600X", # NP / Gerontology
+  "363LP0200X", # NP / Pediatrics
+  "363LP2300X", # NP / Primary
+  "363LC1500X", # NP / Community Health
+  # Physician Assistant (generalist; surgical excluded)
+  "363A00000X", # Physician Assistant (unspecified)
+  "363AM0700X", # PA / Medical
+  # Clinical Nurse Specialist (primary-care specializations + unspecified base)
+  "364S00000X", # Clinical Nurse Specialist (unspecified)
+  "364SF0001X", # CNS / Family Health
+  "364SA2200X", # CNS / Adult Health
+  "364SG0600X", # CNS / Gerontology
+  "364SP0200X", # CNS / Pediatrics
+  "364SC1501X", # CNS / Community/Public Health
+]
+
+# DAC: pri_spec (exact free-text; monolithic NP/PA/CNS)
+dac_pri_spec = [
+  "FAMILY PRACTICE",
+  "GENERAL PRACTICE",
+  "INTERNAL MEDICINE",
+  "PEDIATRIC MEDICINE",
+  "GERIATRIC MEDICINE",
+  "NURSE PRACTITIONER",
+  "PHYSICIAN ASSISTANT",
+  "CERTIFIED CLINICAL NURSE SPECIALIST (CNS)",
+]
+
+# MUP: Rndrng_Prvdr_Type (exact)
+mup_provider_type = [
+  "Family Practice",
+  "General Practice",
+  "Internal Medicine",
+  "Pediatric Medicine",
+  "Geriatric Medicine",
+  "Nurse Practitioner",
+  "Physician Assistant",
+  "Certified Clinical Nurse Specialist",
+]
