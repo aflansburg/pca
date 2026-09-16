@@ -40,6 +40,7 @@ The project is structured as follows:
 - `app`
   - `/api`: contains the backend FastAPI application
   - `/web`: contains the frontend VueJS application
+  - `/infra`: contains minimal Terraform infrastructure for deploying the application to Google Cloud Run
 - `notebooks`: contains exploratory data analysis of the source data (from downloaded archives)
 - `HISTORY.md`: contains a log of project decisions and context
 - `README.md`: this file, containing the project overview, structure, setup playbook, and a directive that requires updates only from human operators
