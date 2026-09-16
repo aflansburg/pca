@@ -1,0 +1,40 @@
+name: drift-watch
+
+# Non-gating schema-drift monitor (HISTORY 011). Polls the four API-backed CMS datasets and
+# compares their live columns to our required_columns. It opens an issue when a required column
+# disappears upstream. It does not gate PRs — that is the separate schema-contract test in ci.yml.
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # daily, 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift-watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.14"
+      - run: uv sync --locked
+      - name: Poll upstream schemas
+        # Default shell sets pipefail, so a drift exit code fails this step even through tee.
+        run: uv run python -m pipeline.driftwatch | tee drift.log
+      - name: Open an issue on drift
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --state open --search 'Schema drift detected in:title' --json number --jq 'length')
+          if [ "$open" -gt 0 ]; then
+            echo "An open schema-drift issue already exists; not opening another."
+            exit 0
+          fi
+          body=$(printf 'drift-watch found a required column missing upstream.\n\n```\n%s\n```\n\nReproduce: `uv run python -m pipeline.driftwatch`\n' "$(cat drift.log)")
+          gh issue create --title "Schema drift detected in CMS source(s)" --body "$body"
