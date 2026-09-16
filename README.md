@@ -288,6 +288,10 @@ We chose a bespoke Python pipeline over a ready-made ETL solution (such as `dlt`
 
 Our pipeline currently operates on a full refresh basis, but adding incremental updates could be a QOL add in the future. It may not strictly be necessary if the data sources do not change often and for low data volume the process is already efficient.
 
+#### Post-validation via Jupyter Notebooks
+
+We might maintain a set of Jupyter notebooks as a safety line to validate the data as we iterate on the pipeline and data quality tests over time, but for this initial release due to time constraints we judged that it was overkill. For now checking the raw and staged data via the DuckDB UI is sufficent.
+
 #### Deployment
 
 For convenience, this project is deployed to Google Cloud Run via Terraform (`/app/infra`). Standing up the CD pipeline in Github Actions fell outside of the initial timebox and was already out of scope. In the future, we could complete this and use Workload Identity Federation using OIDC and setup trust against Github as the IdP or similarly in AWS using IAM OIDC IdP and deploy to Fargate + ECS / AppRunner etc.
