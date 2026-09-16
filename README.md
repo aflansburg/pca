@@ -295,3 +295,7 @@ We might maintain a set of Jupyter notebooks as a safety line to validate the da
 #### Deployment
 
 For convenience, this project is deployed to Google Cloud Run via Terraform (`/app/infra`). Standing up the CD pipeline in Github Actions fell outside of the initial timebox and was already out of scope. In the future, we could complete this and use Workload Identity Federation using OIDC and setup trust against Github as the IdP or similarly in AWS using IAM OIDC IdP and deploy to Fargate + ECS / AppRunner etc.
+
+#### Reference datasets (primarily geo)
+
+The reference datasets are primarily geospatial data, but fall outside of the pipeline which would be a gap at scale.
