@@ -1,0 +1,7 @@
+# Terraform state + local artifacts (lockfile is intentionally tracked)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+crash.*.log
