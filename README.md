@@ -49,10 +49,7 @@ The project is structured as follows:
 
 ### Not committed, but important to the build
 
-`data/sources` (due to size) contain related datasets and data dictionaries for:
-  - provider registry
-  - utilization and payment
-  - vbc
+`data/sources` (due to size) staging on disk for data snapshots pulled from the upstream sources
 
 ## Data sources
 
