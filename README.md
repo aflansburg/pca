@@ -60,7 +60,10 @@ All public CMS / HRSA / Census data, filterable by state in `config/config.toml`
 | NPPES (NPI registry) | provider identity, location, taxonomy |
 | CMS Doctors & Clinicians (DAC) | Medicare enrollment, group linkage |
 | MUP by Provider | per-NPI volume + spend |
-| MUP by Provider & Service | per-NPI × HCPCS detail |
+| MUP by Provider & Service | per-NPI / HCPCS detail |
+| PECOS Reassignment | individual NPI to Group PAC ID
+| HRSA HPSA | HPSA designations for mart_county_access
+| HRSA MUA | MUA/P designations w/ IMU score for mart_tract_access + mart_county_access
 
 ## Setup
 
