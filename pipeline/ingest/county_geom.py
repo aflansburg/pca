@@ -6,36 +6,30 @@ Run: uv run python -m pipeline.ingest.county_geom
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect, create_table, scalar
+from pipeline.asset import SqlAsset
+from pipeline.ingest._duckdb import scalar
 from pipeline.sources import ROOT
 
 GEOM_PATH = ROOT / "data/reference/de_county_geom_2020.json"
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "ref_county_geom"
-OUTPUT_COLUMNS = {
-    "county_fips": "VARCHAR",
-    "geometry_json": "VARCHAR",
-}
-REBUILD_IN_TEST = True  # reads the committed geometry reference file
-
-
-def build(con) -> None:
-    create_table(
-        con,
-        OUTPUT,
-        "SELECT county_fips, geometry_json "
-        "FROM read_json(?, format='array', columns={'county_fips': 'VARCHAR', 'geometry_json': 'VARCHAR'})",
-        [str(GEOM_PATH)],
-    )
+ASSET = SqlAsset(
+    name="ref_county_geom",
+    output="ref_county_geom",
+    inputs=(),
+    output_columns={
+        "county_fips": "VARCHAR",
+        "geometry_json": "VARCHAR",
+    },
+    rebuild_in_test=True,  # reads the committed geometry reference file
+    sql="CREATE OR REPLACE TABLE ref_county_geom AS "
+    "SELECT county_fips, geometry_json "
+    "FROM read_json(?, format='array', columns={'county_fips': 'VARCHAR', 'geometry_json': 'VARCHAR'})",
+    params=(str(GEOM_PATH),),
+)
 
 
 def main() -> None:
-    con = connect()
-    build(con)
-    n = scalar(con, "SELECT count(*) FROM ref_county_geom")
-    print(f"ref_county_geom: {n} counties")
-    con.close()
+    ASSET.run(lambda con, _: print(f"ref_county_geom: {scalar(con, 'SELECT count(*) FROM ref_county_geom')} counties"))
 
 
 if __name__ == "__main__":

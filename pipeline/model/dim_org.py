@@ -6,16 +6,9 @@ Run: uv run python -m pipeline.model.dim_org
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("stg_reassignment",)
-OUTPUT = "dim_org"
-OUTPUT_COLUMNS = {
-    "group_pac_id": "VARCHAR",
-    "group_name": "VARCHAR",
-    "group_state": "VARCHAR",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE dim_org AS
@@ -36,16 +29,27 @@ FROM states s LEFT JOIN name_counts n USING (group_pac_id)
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="dim_org",
+    output="dim_org",
+    inputs=("stg_reassignment",),
+    output_columns={
+        "group_pac_id": "VARCHAR",
+        "group_name": "VARCHAR",
+        "group_state": "VARCHAR",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
+
+
+def _summary(con: DuckDBPyConnection, _) -> None:
+    n = con.execute("SELECT count(*) FROM dim_org").fetchone()
+    print(f"dim_org: {n[0] if n else 0} groups")
 
 
 def main() -> None:
-    con = connect()
-    build(con)
-    n = con.execute("SELECT count(*) FROM dim_org").fetchone()
-    print(f"dim_org: {n[0] if n else 0} groups")
-    con.close()
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

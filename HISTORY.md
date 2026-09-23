@@ -42,6 +42,7 @@ Questions this project answers:
 | [024](#024--api-acquisition--drift-watch) | API acquisition + drift-watch | DECISION | accepted | Four sources ported to API DE-filter; NPPES + HRSA bulk. *(revises 005)* |
 | [025](#025--q1-underserved-done-properly) | Q1 underserved, done properly | DECISION | accepted | Underserved = HRSA MUA + IMU severity; per-capita; facility HPSAs split out. *(revised by 026)* |
 | [026](#026--p1-review-fixes-underserved-precision--density--tests) | P1 review fixes | DECISION | accepted | MUA by component type; orgs out of density; drop in_hpsa_county; data-quality tests. *(revises 025)* |
+| [027](#027--asset-class-hierarchy) | Asset class hierarchy | DECISION | accepted | Per-module `ASSET` instance; `Asset` subclasses hold build + `run`; DAG-as-data contract unchanged. *(revises 012)* |
 
 ---
 
@@ -226,7 +227,7 @@ API, then mapped it to the five questions.
 - Both read one source of truth: expected_columns per source. Drift logic in a repo script (runs local + CI); the Action is a thin wrapper.
 
 ## 012 — Model layer + asset registry
-`[DECISION]` · 2026-09-15 · accepted
+`[DECISION]` · 2026-09-15 · accepted · *revised by [027](#027--asset-class-hierarchy)*
 
 **TL;DR** — Assets are a DAG as data; layers stg → dim/fct → mart; dim_provider grain = NPI.
 
@@ -401,3 +402,26 @@ API, then mapped it to the five questions.
 - Dropped in_hpsa_county (*revises [025](#025--q1-underserved-done-properly)*): every DE county has an area HPSA, so the flag was always true for geocoded providers — a non-signal.
 - Q3 spend scope reconciled: NPPES-canonical $124.6M/1,765 (see [017](#017--mup-ingest)) vs MUP-type-scope $138.8M/1,989 (see [009](#009--scope-filter)); the dim_provider inner join also drops ~121 MUP-DE NPIs (NPPES address out-of-state). Documented; tracked by a test.
 - Added tests/test_data_quality.py: grain/uniqueness, referential integrity, row-count reconciliation, value ranges, category + suppression invariants, and regression guards (is_underserved not uniform; zero orgs in density).
+
+## 027 — Asset class hierarchy
+`[DECISION]` · 2026-09-22 · accepted · *revises [012](#012--model-layer--asset-registry)*
+
+**TL;DR** — Each step declares one `ASSET` instance; `Asset` subclasses (SqlAsset/StageAsset/FuncAsset) hold build + a standalone `run`; the DAG-as-data contract is unchanged.
+
+**Context** — The 24 ingest/model/mart modules repeated one shape: module-level `INPUTS/OUTPUT/OUTPUT_COLUMNS/REBUILD_IN_TEST`, a one-line `build(con)`, and a `connect/build/print/close` `main()`. `assets.py` reflected the module names into an `Asset` dataclass via `_asset(mod, name)`.
+
+**Decision**
+- Asset types move to `pipeline/asset.py` (singular; the registry stays `pipeline/assets.py`, plural). `Asset` keeps the shared contract fields and gains a `build(self, con)` method plus `run(summary)` — connect, build, optional summary, always close.
+- Subclasses carry the build: `SqlAsset` (one SQL statement + `params`), `StageAsset` (stage a CMS source, state-filtered), `FuncAsset` (escape hatch for custom Python — only `dim_location`).
+- Each step module declares its node as `ASSET = <subclass>(...)`. `assets.py` collects `<mod>.ASSET` in dependency order; the `_asset` reflection is removed.
+- Removed the now-unused `create_table` helper; the 3 geometry/population loaders use `SqlAsset` with a full CREATE statement.
+
+**Dissonance (human vs AI)**
+- Human: proposed a class to encapsulate the common build functions.
+- AI: agreed, but kept modules-as-assets and subclassed `Asset`, rather than replacing modules with a flat instance registry (the larger option offered). Reason: it preserves the standalone-runnable module convention and the [012](#012--model-layer--asset-registry) DAG-as-data contract (name/output/inputs/columns + a `build(con)` callable), so the Dagster/Airflow lift still holds.
+
+**Impact**
+- `cli.py` and both tests are unchanged: they use only the `Asset` interface, and `.build(con)` is now a bound method.
+- Each module keeps its bespoke standalone diagnostic, moved into a `summary` callable passed to `ASSET.run`.
+
+**Verification** — `mise run check` green (ruff, ty, 62 tests). `python -m pipeline.cli` and standalone `python -m pipeline.<layer>.<mod>` both run; row counts unchanged (ref_taxonomy 883, dim_org 1262).

@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 import duckdb
+from duckdb import DuckDBPyConnection
 
 from pipeline.sources import DB_PATH, Source
 
@@ -19,12 +20,12 @@ class SchemaDriftError(RuntimeError):
     """Raised when a source is missing a column the pipeline depends on."""
 
 
-def connect() -> duckdb.DuckDBPyConnection:
+def connect() -> DuckDBPyConnection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     return duckdb.connect(str(DB_PATH))
 
 
-def scalar(con, sql: str, params: list | None = None):
+def scalar(con: DuckDBPyConnection, sql: str, params: list | None = None):
     """Run a query and return its single scalar value."""
     row = con.execute(sql, params or []).fetchone()
     assert row is not None, f"expected a row from: {sql}"
@@ -41,11 +42,6 @@ def build_select(columns: dict[str, str], extra: list[str] | None = None) -> str
     if extra:
         parts.extend(extra)
     return ", ".join(parts)
-
-
-def create_table(con, output: str, select_sql: str, params: list | None = None) -> None:
-    """CREATE OR REPLACE `output` from a SELECT (committed-file reference loaders)."""
-    con.execute(f"CREATE OR REPLACE TABLE {output} AS {select_sql}", params or [])
 
 
 def read_header(src: Source) -> list[str]:
@@ -90,7 +86,7 @@ def _fifo_from_zip(src: Source):
         os.rmdir(d)
 
 
-def stage(con, src: Source, state_value: str, select_sql: str) -> tuple[int, str]:
+def stage(con: DuckDBPyConnection, src: Source, state_value: str, select_sql: str) -> tuple[int, str]:
     """CREATE OR REPLACE stg_<key> from the source, filtered to state_value. Records provenance."""
     actual = read_header(src)
     assert_schema(actual, src.required_columns)
@@ -123,7 +119,7 @@ def stage(con, src: Source, state_value: str, select_sql: str) -> tuple[int, str
     return row_count, schema_hash
 
 
-def _record_manifest(con, src: Source, schema_hash: str, row_count: int) -> None:
+def _record_manifest(con: DuckDBPyConnection, src: Source, schema_hash: str, row_count: int) -> None:
     con.execute(
         """CREATE TABLE IF NOT EXISTS _manifest(
             source VARCHAR, kind VARCHAR, source_ref VARCHAR, release VARCHAR,

@@ -1,7 +1,7 @@
 """Schema-contract test: our pipeline's output tables carry the columns/types the app depends on.
 
 Deterministic, no raw CMS files needed. Guards against a transform dropping/renaming a
-depended-on column. (Upstream CMS drift is the separate drift-watch, HISTORY 011.)
+depended-on column. (Upstream CMS drift is the separate drift-watch)
 
 It copies the committed atlas.duckdb to a temp file, rebuilds the CI-rebuildable model assets
 from the committed staging tables (so model edits are actually exercised, not read stale),

@@ -6,15 +6,9 @@ Run: uv run python -m pipeline.model.bridge_provider_org
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("stg_reassignment", "dim_provider")
-OUTPUT = "bridge_provider_org"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "group_pac_id": "VARCHAR",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE bridge_provider_org AS
@@ -25,19 +19,29 @@ WHERE d.is_primary_care AND r.group_pac_id IS NOT NULL
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="bridge_provider_org",
+    output="bridge_provider_org",
+    inputs=("stg_reassignment", "dim_provider"),
+    output_columns={
+        "npi": "VARCHAR",
+        "group_pac_id": "VARCHAR",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     row = con.execute(
         "SELECT count(*), count(DISTINCT npi), count(DISTINCT group_pac_id) FROM bridge_provider_org"
     ).fetchone()
     if row:
         print(f"bridge_provider_org: {row[0]} links | {row[1]} providers | {row[2]} groups")
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

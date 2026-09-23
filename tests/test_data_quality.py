@@ -2,7 +2,7 @@
 
 Where test_schema_contract.py checks columns/types, this checks VALUES — grain/uniqueness,
 referential integrity, row-count reconciliation, value ranges, and cross-column invariants. It also
-carries regression guards for the P1 review fixes (HISTORY 026): underserved is not degenerate,
+carries regression guards for "underserved is not degenerate",
 organizations are excluded from clinician density, and the MUP-join drop is bounded and visible.
 
 Deterministic and CI-safe: it copies the committed atlas.duckdb and rebuilds the rebuild_in_test
@@ -126,7 +126,7 @@ def test_dim_provider_reconciles_to_nppes(con):
 
 
 def test_primary_care_count_and_split(con):
-    """Primary-care population and its category split match the documented figures (HISTORY 012)."""
+    """Primary-care population and its category split match the documented figures"""
     assert _scalar(con, "SELECT count(*) FROM dim_provider WHERE is_primary_care") == 4524
     split = dict(
         con.execute("SELECT provider_category, count(*) FROM dim_provider WHERE is_primary_care GROUP BY 1").fetchall()
@@ -212,9 +212,6 @@ def test_medical_plus_drug_within_total(con):
         "WHERE coalesce(medical_paid, 0) + coalesce(drug_paid, 0) > total_medicare_paid + 0.5",
     )
     assert bad == 0
-
-
-# --- 6. Regression guards for the P1 fixes (HISTORY 026) --------------------------------------
 
 
 def test_underserved_not_degenerate(con):

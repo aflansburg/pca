@@ -18,7 +18,7 @@ class Source:
     kind: str  # "zip" | "csv" | "api"
     path: Path  # file to read (zip or csv)
     member: str | None  # member inside the zip, else None
-    encoding: str  # "utf-8" | "latin-1" (CMS files vary; HISTORY 006)
+    encoding: str  # "utf-8" | "latin-1" (CMS files vary)
     state_col: str  # column the state filter applies to
     required_columns: tuple[str, ...]  # schema contract: these MUST be present (fail loud otherwise)
     release: str  # pinned release id, for provenance

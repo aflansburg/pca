@@ -7,8 +7,9 @@ Run: uv run python -m pipeline.ingest.mup_provider
 
 from __future__ import annotations
 
+from pipeline.asset import StageAsset
 from pipeline.config import STATE
-from pipeline.ingest._duckdb import build_select, connect, stage
+from pipeline.ingest._duckdb import build_select
 from pipeline.sources import MUP_PROVIDER
 
 _COLUMNS = {
@@ -31,27 +32,25 @@ _COLUMNS = {
     "Med_Mdcr_Pymt_Amt": "med_mdcr_pymt_amt",
 }
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "stg_mup_provider"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "state": "VARCHAR",
-    "provider_type": "VARCHAR",
-    "tot_srvcs": "VARCHAR",
-    "tot_mdcr_pymt_amt": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # reads the raw MUP file (not in CI)
-
-
-def build(con) -> tuple[int, str]:
-    return stage(con, MUP_PROVIDER, STATE, build_select(_COLUMNS))
+ASSET = StageAsset(
+    name="mup_provider",
+    output="stg_mup_provider",
+    inputs=(),
+    output_columns={
+        "npi": "VARCHAR",
+        "state": "VARCHAR",
+        "provider_type": "VARCHAR",
+        "tot_srvcs": "VARCHAR",
+        "tot_mdcr_pymt_amt": "VARCHAR",
+    },
+    rebuild_in_test=False,  # reads the raw MUP file (not in CI)
+    source=MUP_PROVIDER,
+    select=build_select(_COLUMNS),
+)
 
 
 def main() -> None:
-    con = connect()
-    rows, schema_hash = build(con)
-    print(f"stg_mup_provider: {rows} rows (state={STATE}) | schema {schema_hash}")
-    con.close()
+    ASSET.run(lambda con, r: print(f"stg_mup_provider: {r[0]} rows (state={STATE}) | schema {r[1]}"))
 
 
 if __name__ == "__main__":

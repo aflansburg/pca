@@ -7,25 +7,9 @@ Run: uv run python -m pipeline.marts.mart_provider_locations
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("dim_provider", "dim_location", "stg_mua")
-OUTPUT = "mart_provider_locations"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "provider_name": "VARCHAR",
-    "provider_category": "VARCHAR",
-    "taxonomy_label": "VARCHAR",
-    "is_organization": "BOOLEAN",
-    "city": "VARCHAR",
-    "lat": "DOUBLE",
-    "lon": "DOUBLE",
-    "location_source": "VARCHAR",
-    "county_fips": "VARCHAR",
-    "tract_fips": "VARCHAR",
-    "in_mua_tract": "BOOLEAN",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_provider_locations AS
@@ -44,13 +28,30 @@ WHERE p.is_primary_care AND l.lat IS NOT NULL
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_provider_locations",
+    output="mart_provider_locations",
+    inputs=("dim_provider", "dim_location", "stg_mua"),
+    output_columns={
+        "npi": "VARCHAR",
+        "provider_name": "VARCHAR",
+        "provider_category": "VARCHAR",
+        "taxonomy_label": "VARCHAR",
+        "is_organization": "BOOLEAN",
+        "city": "VARCHAR",
+        "lat": "DOUBLE",
+        "lon": "DOUBLE",
+        "location_source": "VARCHAR",
+        "county_fips": "VARCHAR",
+        "tract_fips": "VARCHAR",
+        "in_mua_tract": "BOOLEAN",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print(
         con.execute(
             "SELECT location_source, count(*) n, count(*) FILTER(WHERE in_mua_tract) in_mua "
@@ -59,7 +60,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

@@ -6,8 +6,9 @@ Run: uv run python -m pipeline.ingest.reassignment
 
 from __future__ import annotations
 
+from pipeline.asset import StageAsset
 from pipeline.config import STATE
-from pipeline.ingest._duckdb import build_select, connect, stage
+from pipeline.ingest._duckdb import build_select
 from pipeline.sources import REASSIGNMENT
 
 _COLUMNS = {
@@ -22,26 +23,24 @@ _COLUMNS = {
     "Individual Last Name": "last_name",
 }
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "stg_reassignment"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "individual_state": "VARCHAR",
-    "group_pac_id": "VARCHAR",
-    "group_name": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # reads the raw reassignment file (not in CI)
-
-
-def build(con) -> tuple[int, str]:
-    return stage(con, REASSIGNMENT, STATE, build_select(_COLUMNS))
+ASSET = StageAsset(
+    name="reassignment",
+    output="stg_reassignment",
+    inputs=(),
+    output_columns={
+        "npi": "VARCHAR",
+        "individual_state": "VARCHAR",
+        "group_pac_id": "VARCHAR",
+        "group_name": "VARCHAR",
+    },
+    rebuild_in_test=False,  # reads the raw reassignment file (not in CI)
+    source=REASSIGNMENT,
+    select=build_select(_COLUMNS),
+)
 
 
 def main() -> None:
-    con = connect()
-    rows, schema_hash = build(con)
-    print(f"stg_reassignment: {rows} rows (state={STATE}) | schema {schema_hash}")
-    con.close()
+    ASSET.run(lambda con, r: print(f"stg_reassignment: {r[0]} rows (state={STATE}) | schema {r[1]}"))
 
 
 if __name__ == "__main__":

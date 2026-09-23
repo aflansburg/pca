@@ -7,27 +7,9 @@ Run: uv run python -m pipeline.marts.mart_provider_peer_comparison
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("stg_mup_provider", "dim_provider")
-OUTPUT = "mart_provider_peer_comparison"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "provider_name": "VARCHAR",
-    "provider_category": "VARCHAR",
-    "primary_taxonomy": "VARCHAR",
-    "taxonomy_label": "VARCHAR",
-    "city": "VARCHAR",
-    "total_services": "BIGINT",
-    "total_beneficiaries": "BIGINT",
-    "medical_medicare_paid": "DOUBLE",
-    "peer_group_size": "BIGINT",
-    "pct_services": "DOUBLE",
-    "pct_beneficiaries": "DOUBLE",
-    "pct_medical_paid": "DOUBLE",
-    "low_confidence": "BOOLEAN",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_provider_peer_comparison AS
@@ -57,13 +39,32 @@ WINDOW peer AS (PARTITION BY primary_taxonomy)
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_provider_peer_comparison",
+    output="mart_provider_peer_comparison",
+    inputs=("stg_mup_provider", "dim_provider"),
+    output_columns={
+        "npi": "VARCHAR",
+        "provider_name": "VARCHAR",
+        "provider_category": "VARCHAR",
+        "primary_taxonomy": "VARCHAR",
+        "taxonomy_label": "VARCHAR",
+        "city": "VARCHAR",
+        "total_services": "BIGINT",
+        "total_beneficiaries": "BIGINT",
+        "medical_medicare_paid": "DOUBLE",
+        "peer_group_size": "BIGINT",
+        "pct_services": "DOUBLE",
+        "pct_beneficiaries": "DOUBLE",
+        "pct_medical_paid": "DOUBLE",
+        "low_confidence": "BOOLEAN",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print("Peer-group sizes (top specialties):")
     print(
         con.execute(
@@ -74,7 +75,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

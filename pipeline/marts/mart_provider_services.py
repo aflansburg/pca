@@ -7,22 +7,9 @@ Run: uv run python -m pipeline.marts.mart_provider_services
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("stg_mup_service", "dim_provider")
-OUTPUT = "mart_provider_services"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "hcpcs_cd": "VARCHAR",
-    "hcpcs_desc": "VARCHAR",
-    "hcpcs_drug_ind": "VARCHAR",
-    "place_of_srvc": "VARCHAR",
-    "services": "BIGINT",
-    "beneficiaries": "BIGINT",
-    "avg_medicare_paid": "DOUBLE",
-    "total_medicare_paid": "DOUBLE",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_provider_services AS
@@ -39,13 +26,27 @@ WHERE d.is_primary_care
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_provider_services",
+    output="mart_provider_services",
+    inputs=("stg_mup_service", "dim_provider"),
+    output_columns={
+        "npi": "VARCHAR",
+        "hcpcs_cd": "VARCHAR",
+        "hcpcs_desc": "VARCHAR",
+        "hcpcs_drug_ind": "VARCHAR",
+        "place_of_srvc": "VARCHAR",
+        "services": "BIGINT",
+        "beneficiaries": "BIGINT",
+        "avg_medicare_paid": "DOUBLE",
+        "total_medicare_paid": "DOUBLE",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print("A provider's top 5 services by derived total paid:")
     print(
         con.execute(
@@ -58,7 +59,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

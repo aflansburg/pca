@@ -6,37 +6,37 @@ Run: uv run python -m pipeline.ingest.county_population
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect, create_table, scalar
+from duckdb import DuckDBPyConnection
+
+from pipeline.asset import SqlAsset
+from pipeline.ingest._duckdb import scalar
 from pipeline.sources import ROOT
 
 POP_PATH = ROOT / "data/reference/de_county_population_2023.csv"
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "ref_county_population"
-OUTPUT_COLUMNS = {
-    "county_fips": "VARCHAR",
-    "county_name": "VARCHAR",
-    "population": "BIGINT",
-}
-REBUILD_IN_TEST = True  # reads the committed population reference file
+ASSET = SqlAsset(
+    name="ref_county_population",
+    output="ref_county_population",
+    inputs=(),
+    output_columns={
+        "county_fips": "VARCHAR",
+        "county_name": "VARCHAR",
+        "population": "BIGINT",
+    },
+    rebuild_in_test=True,  # reads the committed population reference file
+    sql="CREATE OR REPLACE TABLE ref_county_population AS "
+    "SELECT county_fips, county_name, CAST(population AS BIGINT) AS population "
+    "FROM read_csv(?, all_varchar=true, header=true)",
+    params=(str(POP_PATH),),
+)
 
 
-def build(con) -> None:
-    create_table(
-        con,
-        OUTPUT,
-        "SELECT county_fips, county_name, CAST(population AS BIGINT) AS population "
-        "FROM read_csv(?, all_varchar=true, header=true)",
-        [str(POP_PATH)],
-    )
+def _summary(con: DuckDBPyConnection, _) -> None:
+    print(f"ref_county_population: {scalar(con, 'SELECT count(*) FROM ref_county_population')} counties")
 
 
 def main() -> None:
-    con = connect()
-    build(con)
-    n = scalar(con, "SELECT count(*) FROM ref_county_population")
-    print(f"ref_county_population: {n} counties")
-    con.close()
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

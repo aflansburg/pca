@@ -13,21 +13,9 @@ import io
 from datetime import UTC, datetime
 
 import requests
+from duckdb import DuckDBPyConnection
 
-from pipeline.ingest._duckdb import connect
-
-INPUTS = ("dim_provider", "ref_zcta_centroid")
-OUTPUT = "dim_location"
-OUTPUT_COLUMNS = {
-    "location_key": "VARCHAR",
-    "lat": "DOUBLE",
-    "lon": "DOUBLE",
-    "geocode_match": "BOOLEAN",
-    "location_source": "VARCHAR",  # census | zcta_centroid | unresolved
-    "county_fips": "VARCHAR",
-    "tract_fips": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # external network call
+from pipeline.asset import FuncAsset
 
 _ENDPOINT = "https://geocoding.geo.census.gov/geocoder/geographies/addressbatch"
 _BENCHMARK = "Public_AR_Current"
@@ -99,7 +87,7 @@ def _parse(row: list[str]) -> dict:
     }
 
 
-def build(con) -> None:
+def build(con: DuckDBPyConnection) -> None:
     con.execute(_DDL)
     candidates = con.execute(
         """SELECT DISTINCT location_key, address, city, state, postal_code
@@ -152,16 +140,35 @@ def build(con) -> None:
     con.execute("UPDATE dim_location SET location_source = 'unresolved' WHERE lat IS NULL")
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+ASSET = FuncAsset(
+    name="dim_location",
+    output="dim_location",
+    inputs=("dim_provider", "ref_zcta_centroid"),
+    output_columns={
+        "location_key": "VARCHAR",
+        "lat": "DOUBLE",
+        "lon": "DOUBLE",
+        "geocode_match": "BOOLEAN",
+        "location_source": "VARCHAR",  # census | zcta_centroid | unresolved
+        "county_fips": "VARCHAR",
+        "tract_fips": "VARCHAR",
+    },
+    rebuild_in_test=False,  # external network call
+    fn=build,
+)
+
+
+def _summary(con: DuckDBPyConnection, _) -> None:
     print("dim_location by source:")
     print(
         con.execute("SELECT location_source, count(*) n FROM dim_location GROUP BY 1 ORDER BY n DESC")
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

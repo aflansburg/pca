@@ -6,8 +6,8 @@ Run: uv run python -m pipeline.ingest.nppes
 
 from __future__ import annotations
 
+from pipeline.asset import StageAsset
 from pipeline.config import STATE
-from pipeline.ingest._duckdb import connect, stage
 from pipeline.sources import NPPES
 
 _IDENT = {
@@ -39,26 +39,24 @@ def _build_select() -> str:
     return ", ".join(parts)
 
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "stg_nppes"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "entity_type_code": "VARCHAR",
-    "state": "VARCHAR",
-    "primary_taxonomy": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # needs the 11.7 GB raw file; not available in CI
-
-
-def build(con) -> tuple[int, str]:
-    return stage(con, NPPES, STATE, _build_select())
+ASSET = StageAsset(
+    name="nppes",
+    output="stg_nppes",
+    inputs=(),
+    output_columns={
+        "npi": "VARCHAR",
+        "entity_type_code": "VARCHAR",
+        "state": "VARCHAR",
+        "primary_taxonomy": "VARCHAR",
+    },
+    rebuild_in_test=False,  # needs the 11.7 GB raw file; not available in CI
+    source=NPPES,
+    select=_build_select(),
+)
 
 
 def main() -> None:
-    con = connect()
-    rows, schema_hash = build(con)
-    print(f"stg_nppes: {rows} rows (state={STATE}) | schema {schema_hash}")
-    con.close()
+    ASSET.run(lambda con, r: print(f"stg_nppes: {r[0]} rows (state={STATE}) | schema {r[1]}"))
 
 
 if __name__ == "__main__":

@@ -6,20 +6,9 @@ Run: uv run python -m pipeline.marts.mart_county_geo
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("mart_county_access", "mart_tract_access", "ref_county_geom")
-OUTPUT = "mart_county_geo"
-OUTPUT_COLUMNS = {
-    "county_fips": "VARCHAR",
-    "county_name": "VARCHAR",
-    "pc_provider_count": "BIGINT",
-    "pc_per_10k": "DOUBLE",
-    "worst_imu": "DOUBLE",
-    "is_underserved": "BOOLEAN",
-    "geometry_json": "VARCHAR",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_county_geo AS
@@ -37,19 +26,34 @@ LEFT JOIN imu USING (county_fips)
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_county_geo",
+    output="mart_county_geo",
+    inputs=("mart_county_access", "mart_tract_access", "ref_county_geom"),
+    output_columns={
+        "county_fips": "VARCHAR",
+        "county_name": "VARCHAR",
+        "pc_provider_count": "BIGINT",
+        "pc_per_10k": "DOUBLE",
+        "worst_imu": "DOUBLE",
+        "is_underserved": "BOOLEAN",
+        "geometry_json": "VARCHAR",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print(
         con.execute("SELECT county_name, pc_per_10k, worst_imu, is_underserved FROM mart_county_geo")
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

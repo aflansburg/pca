@@ -8,26 +8,7 @@ Provider counts are census-matched addresses only. Run: uv run python -m pipelin
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
-
-INPUTS = ("ref_county_population", "dim_provider", "dim_location", "stg_hpsa", "stg_mua")
-OUTPUT = "mart_county_access"
-OUTPUT_COLUMNS = {
-    "county_fips": "VARCHAR",
-    "county_name": "VARCHAR",
-    "population": "BIGINT",
-    "pc_provider_count": "BIGINT",
-    "physician_count": "BIGINT",
-    "app_provider_count": "BIGINT",
-    "pc_per_10k": "DOUBLE",
-    "hpsa_population_count": "BIGINT",
-    "correctional_hpsa_count": "BIGINT",
-    "fqhc_hpsa_count": "BIGINT",
-    "hpsa_population_max_score": "DOUBLE",
-    "mua_tract_count": "BIGINT",
-    "mua_designation_count": "BIGINT",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed reference + staging tables
+from pipeline.asset import SqlAsset
 
 # Area/resident HPSAs = geographic + population; facility HPSAs (Correctional/FQHC) counted separately.
 _IS_AREA_HPSA = "(designation_type ILIKE '%Geographic%' OR designation_type = 'HPSA Population')"
@@ -85,15 +66,32 @@ ORDER BY pc_per_10k ASC
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_county_access",
+    output="mart_county_access",
+    inputs=("ref_county_population", "dim_provider", "dim_location", "stg_hpsa", "stg_mua"),
+    output_columns={
+        "county_fips": "VARCHAR",
+        "county_name": "VARCHAR",
+        "population": "BIGINT",
+        "pc_provider_count": "BIGINT",
+        "physician_count": "BIGINT",
+        "app_provider_count": "BIGINT",
+        "pc_per_10k": "DOUBLE",
+        "hpsa_population_count": "BIGINT",
+        "correctional_hpsa_count": "BIGINT",
+        "fqhc_hpsa_count": "BIGINT",
+        "hpsa_population_max_score": "DOUBLE",
+        "mua_tract_count": "BIGINT",
+        "mua_designation_count": "BIGINT",
+    },
+    rebuild_in_test=True,  # pure SQL over committed reference + staging tables
+    sql=_SQL,
+)
 
 
 def main() -> None:
-    con = connect()
-    build(con)
-    print(con.execute("SELECT * FROM mart_county_access").fetchdf().to_string(index=False))
-    con.close()
+    ASSET.run(lambda con, _: print(con.execute("SELECT * FROM mart_county_access").fetchdf().to_string(index=False)))
 
 
 if __name__ == "__main__":

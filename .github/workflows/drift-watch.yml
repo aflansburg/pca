@@ -1,6 +1,6 @@
 name: drift-watch
 
-# Non-gating schema-drift monitor (HISTORY 011). Polls the four API-backed CMS datasets and
+# Non-gating schema-drift monitor. Polls the four API-backed CMS datasets and
 # compares their live columns to our required_columns. It opens an issue when a required column
 # disappears upstream. It does not gate PRs — that is the separate schema-contract test in ci.yml.
 

@@ -6,8 +6,9 @@ Run: uv run python -m pipeline.ingest.hpsa
 
 from __future__ import annotations
 
+from pipeline.asset import StageAsset
 from pipeline.config import STATE
-from pipeline.ingest._duckdb import build_select, connect, stage
+from pipeline.ingest._duckdb import build_select
 from pipeline.sources import HPSA
 
 _COLUMNS = {
@@ -27,28 +28,26 @@ _COLUMNS = {
     "Rural Status": "rural_status",
 }
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "stg_hpsa"
-OUTPUT_COLUMNS = {
-    "hpsa_id": "VARCHAR",
-    "state_abbr": "VARCHAR",
-    "hpsa_status": "VARCHAR",
-    "designation_type": "VARCHAR",
-    "hpsa_score": "VARCHAR",
-    "county_fips": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # reads the raw HRSA file (not in CI)
-
-
-def build(con) -> tuple[int, str]:
-    return stage(con, HPSA, STATE, build_select(_COLUMNS))
+ASSET = StageAsset(
+    name="hpsa",
+    output="stg_hpsa",
+    inputs=(),
+    output_columns={
+        "hpsa_id": "VARCHAR",
+        "state_abbr": "VARCHAR",
+        "hpsa_status": "VARCHAR",
+        "designation_type": "VARCHAR",
+        "hpsa_score": "VARCHAR",
+        "county_fips": "VARCHAR",
+    },
+    rebuild_in_test=False,  # reads the raw HRSA file (not in CI)
+    source=HPSA,
+    select=build_select(_COLUMNS),
+)
 
 
 def main() -> None:
-    con = connect()
-    rows, schema_hash = build(con)
-    print(f"stg_hpsa: {rows} rows (state={STATE}) | schema {schema_hash}")
-    con.close()
+    ASSET.run(lambda con, r: print(f"stg_hpsa: {r[0]} rows (state={STATE}) | schema {r[1]}"))
 
 
 if __name__ == "__main__":

@@ -6,8 +6,11 @@ Run: uv run python -m pipeline.ingest.dac
 
 from __future__ import annotations
 
+from duckdb import DuckDBPyConnection
+
+from pipeline.asset import StageAsset
 from pipeline.config import STATE
-from pipeline.ingest._duckdb import build_select, connect, scalar, stage
+from pipeline.ingest._duckdb import build_select, scalar
 from pipeline.sources import DAC
 
 # Keys are DKAN machine column names (differ from the bulk file's display names).
@@ -33,29 +36,32 @@ _COLUMNS = {
 }
 
 
-INPUTS: tuple[str, ...] = ()
-OUTPUT = "stg_dac"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "state": "VARCHAR",
-    "pri_spec": "VARCHAR",
-    "org_pac_id": "VARCHAR",
-    "ind_pac_id": "VARCHAR",
-    "adrs_id": "VARCHAR",
-}
-REBUILD_IN_TEST = False  # needs the 800 MB raw file; not available in CI
+ASSET = StageAsset(
+    name="dac",
+    output="stg_dac",
+    inputs=(),
+    output_columns={
+        "npi": "VARCHAR",
+        "state": "VARCHAR",
+        "pri_spec": "VARCHAR",
+        "org_pac_id": "VARCHAR",
+        "ind_pac_id": "VARCHAR",
+        "adrs_id": "VARCHAR",
+    },
+    rebuild_in_test=False,  # needs the 800 MB raw file; not available in CI
+    source=DAC,
+    select=build_select(_COLUMNS),
+)
 
 
-def build(con) -> tuple[int, str]:
-    return stage(con, DAC, STATE, build_select(_COLUMNS))
+def _summary(con: DuckDBPyConnection, result) -> None:
+    rows, schema_hash = result
+    uniq = scalar(con, "SELECT count(DISTINCT npi) FROM stg_dac")
+    print(f"stg_dac: {rows} rows (state={STATE}) | {uniq} unique NPIs | schema {schema_hash}")
 
 
 def main() -> None:
-    con = connect()
-    rows, schema_hash = build(con)
-    uniq = scalar(con, "SELECT count(DISTINCT npi) FROM stg_dac")
-    print(f"stg_dac: {rows} rows (state={STATE}) | {uniq} unique NPIs | schema {schema_hash}")
-    con.close()
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

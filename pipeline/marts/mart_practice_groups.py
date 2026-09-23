@@ -6,19 +6,9 @@ Run: uv run python -m pipeline.marts.mart_practice_groups
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("bridge_provider_org", "dim_org", "dim_provider")
-OUTPUT = "mart_practice_groups"
-OUTPUT_COLUMNS = {
-    "group_pac_id": "VARCHAR",
-    "group_name": "VARCHAR",
-    "group_state": "VARCHAR",
-    "pc_member_count": "BIGINT",
-    "physician_count": "BIGINT",
-    "app_provider_count": "BIGINT",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_practice_groups AS
@@ -36,13 +26,24 @@ ORDER BY pc_member_count DESC
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_practice_groups",
+    output="mart_practice_groups",
+    inputs=("bridge_provider_org", "dim_org", "dim_provider"),
+    output_columns={
+        "group_pac_id": "VARCHAR",
+        "group_name": "VARCHAR",
+        "group_state": "VARCHAR",
+        "pc_member_count": "BIGINT",
+        "physician_count": "BIGINT",
+        "app_provider_count": "BIGINT",
+    },
+    rebuild_in_test=True,  # pure SQL over committed tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print("Largest primary-care practice groups (DE):")
     print(
         con.execute(
@@ -51,7 +52,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

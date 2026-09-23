@@ -7,26 +7,10 @@ Run: uv run python -m pipeline.model.dim_provider
 
 from __future__ import annotations
 
-from pipeline.config import PRIMARY_CARE
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("stg_nppes", "stg_dac", "ref_taxonomy")
-OUTPUT = "dim_provider"
-OUTPUT_COLUMNS = {
-    "npi": "VARCHAR",
-    "is_organization": "BOOLEAN",
-    "provider_name": "VARCHAR",
-    "city": "VARCHAR",
-    "state": "VARCHAR",
-    "postal_code": "VARCHAR",
-    "primary_taxonomy": "VARCHAR",
-    "taxonomy_label": "VARCHAR",
-    "provider_category": "VARCHAR",
-    "is_primary_care": "BOOLEAN",
-    "is_medicare_enrolled": "BOOLEAN",
-    "location_key": "VARCHAR",
-}
-REBUILD_IN_TEST = True  # rebuilds from committed staging tables
+from pipeline.asset import SqlAsset
+from pipeline.config import PRIMARY_CARE
 
 _SQL = """
 CREATE OR REPLACE TABLE dim_provider AS
@@ -62,13 +46,31 @@ LEFT JOIN dac_enrolled d ON n.npi = d.npi
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL, [PRIMARY_CARE["nppes_taxonomy_codes"]])
+ASSET = SqlAsset(
+    name="dim_provider",
+    output="dim_provider",
+    inputs=("stg_nppes", "stg_dac", "ref_taxonomy"),
+    output_columns={
+        "npi": "VARCHAR",
+        "is_organization": "BOOLEAN",
+        "provider_name": "VARCHAR",
+        "city": "VARCHAR",
+        "state": "VARCHAR",
+        "postal_code": "VARCHAR",
+        "primary_taxonomy": "VARCHAR",
+        "taxonomy_label": "VARCHAR",
+        "provider_category": "VARCHAR",
+        "is_primary_care": "BOOLEAN",
+        "is_medicare_enrolled": "BOOLEAN",
+        "location_key": "VARCHAR",
+    },
+    rebuild_in_test=True,  # rebuilds from committed staging tables
+    sql=_SQL,
+    params=(PRIMARY_CARE["nppes_taxonomy_codes"],),
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print("dim_provider built.")
     print(
         con.execute(
@@ -78,7 +80,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

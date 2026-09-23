@@ -8,21 +8,9 @@ Run: uv run python -m pipeline.marts.mart_tract_access
 
 from __future__ import annotations
 
-from pipeline.ingest._duckdb import connect
+from duckdb import DuckDBPyConnection
 
-INPUTS = ("ref_tract_geom", "ref_county_population", "stg_mua", "dim_provider", "dim_location")
-OUTPUT = "mart_tract_access"
-OUTPUT_COLUMNS = {
-    "tract_fips": "VARCHAR",
-    "county_fips": "VARCHAR",
-    "county_name": "VARCHAR",
-    "is_mua": "BOOLEAN",
-    "is_mua_tract": "BOOLEAN",
-    "imu_score": "DOUBLE",
-    "pc_provider_count": "BIGINT",
-    "is_underserved": "BOOLEAN",
-}
-REBUILD_IN_TEST = True  # pure SQL over committed reference + staging tables
+from pipeline.asset import SqlAsset
 
 _SQL = """
 CREATE OR REPLACE TABLE mart_tract_access AS
@@ -66,13 +54,26 @@ ORDER BY is_underserved DESC, imu_score ASC NULLS LAST, pc_provider_count ASC
 """
 
 
-def build(con) -> None:
-    con.execute(_SQL)
+ASSET = SqlAsset(
+    name="mart_tract_access",
+    output="mart_tract_access",
+    inputs=("ref_tract_geom", "ref_county_population", "stg_mua", "dim_provider", "dim_location"),
+    output_columns={
+        "tract_fips": "VARCHAR",
+        "county_fips": "VARCHAR",
+        "county_name": "VARCHAR",
+        "is_mua": "BOOLEAN",
+        "is_mua_tract": "BOOLEAN",
+        "imu_score": "DOUBLE",
+        "pc_provider_count": "BIGINT",
+        "is_underserved": "BOOLEAN",
+    },
+    rebuild_in_test=True,  # pure SQL over committed reference + staging tables
+    sql=_SQL,
+)
 
 
-def main() -> None:
-    con = connect()
-    build(con)
+def _summary(con: DuckDBPyConnection, _) -> None:
     print(
         con.execute(
             "SELECT tract_fips, county_name, is_mua, imu_score, pc_provider_count "
@@ -81,7 +82,10 @@ def main() -> None:
         .fetchdf()
         .to_string(index=False)
     )
-    con.close()
+
+
+def main() -> None:
+    ASSET.run(_summary)
 
 
 if __name__ == "__main__":

@@ -64,9 +64,11 @@ definitions here. The common ones:
   list in pipeline logic.
 - **Pipeline layers.** Sources flow through the pipeline `stg_* -> dim_*/fct_* -> mart_*`. Put
   question-specific logic only in the marts.
-- **Assets are a DAG as data.** `pipeline/assets.py` declares each asset as
-  `Asset(name, output, inputs, build)` and `pipeline/cli.py` executes the graph. Keep this
-  shape so the pipeline can be lifted to Dagster or Airflow or another orchestrator without a rewrite.
+- **Assets are a DAG as data.** Each step module declares one `ASSET` instance -- a subclass of
+  `Asset` (`SqlAsset` / `StageAsset` / `FuncAsset`, defined in `pipeline/asset.py`). `pipeline/assets.py`
+  collects them in dependency order and `pipeline/cli.py` executes the graph. Keep this shape (name,
+  output, inputs, output_columns + a `build(con)` method) so the pipeline can be lifted to Dagster or
+  Airflow or another orchestrator without a rewrite. See HISTORY 027.
 - **Marts get domain-semantic names** (`mart_provider_locations`).
   Name the concept or question being answered in the docstring only.
 - **Build for extension.** Add a source using the existing per source convention: one
