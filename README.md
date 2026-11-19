@@ -301,3 +301,11 @@ For convenience, this project is deployed to Google Cloud Run via Terraform (`/a
 #### Reference datasets (primarily geo)
 
 The reference datasets are primarily geospatial data, but fall outside of the pipeline which would be a gap at scale.
+
+## License
+
+The code in this repository is under the [MIT License](LICENSE).
+
+The MIT License does not cover the third-party data in this repository:
+- CMS, HRSA, and U.S. Census Bureau data are U.S. government works in the public domain.
+- `data/reference/nucc_taxonomy_261.csv` is the Health Care Provider Taxonomy code set v26.1 from the [National Uniform Claim Committee (NUCC)](https://www.nucc.org/). NUCC terms of use apply to it.
