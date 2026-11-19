@@ -1,6 +1,6 @@
 # primary-care-atlas
 
-[Deployment on Google Cloud Run](https://primary-care-atlas-isb4eul3nq-uc.a.run.app)
+[Deployment on Google Cloud Run - service cold boots, so give it a few seconds to spin up](https://primary-care-atlas-isb4eul3nq-uc.a.run.app)
 
 A full stack solution from data ingestion to querying and visualization for exploring:
 - primary care provider locations
